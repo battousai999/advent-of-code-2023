@@ -80,29 +80,21 @@ let getMappingValue (mappings: MappingSpec list) (value: int64) =
     | Some mapping -> mapping.DestinationStart + (value - mapping.SourceStart)
     | None -> value
 
-let memoize f =
-    let dict = Dictionary<_, _>();
-    fun c ->
-        let exist, value = dict.TryGetValue c
-        match exist with
-        | true -> value
-        | _ -> 
-            let value = f c
-            dict.Add(c, value)
-            value
-let calculateLocationForSeed (seed: int64) =
-    let rec applyMapping (category: string) (value: int64) =
-        let section = 
+let locationForSeedLookup =
+    let rec getMapping (category: string) =
+        let section =
             match (sections |> List.tryFind (fun x -> x.SourceType = category)) with
             | Some section -> section
-            | None -> raise <| ApplicationException($"could not find section for source type: {category}")        
-        let mappedValue = getMappingValue section.Mappings value
+            | None -> raise <| ApplicationException($"could not find section for source type: {category}")
+        let mapper = (fun (value: int64) -> getMappingValue section.Mappings value)
 
-        if section.DestinationType = "location"
-        then mappedValue
-        else applyMapping section.DestinationType mappedValue
+        if section.DestinationType = "location" then
+            mapper
+        else
+            let nextMapper = getMapping section.DestinationType
+            (fun (value: int64) -> nextMapper <| mapper value)
 
-    applyMapping "seed" seed
+    getMapping "seed"
 
 let mutable minValue: int64 = Int64.MaxValue
 let minValueLock = Object()
@@ -115,7 +107,7 @@ seeds
                 toExclusive = start + length - 1L, 
                 localInit = (fun () -> Int64.MaxValue), 
                 body = (fun (value: int64) (state: ParallelLoopState) (local: int64) ->
-                    let result = calculateLocationForSeed value
+                    let result = locationForSeedLookup value
                     Int64.Min(local, result)),
                 localFinally = (fun local -> lock minValueLock (fun () -> minValue <- Int64.Min(minValue, local)))) |> ignore)
 
