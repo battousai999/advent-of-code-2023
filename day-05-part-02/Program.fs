@@ -107,17 +107,16 @@ let calculateLocationForSeed (seed: int64) =
 let mutable minValue: int64 = Int64.MaxValue
 let minValueLock = Object()
 
-let leastLocation = 
-    seeds 
-        |> List.iter (
-            fun (start, length) -> 
-                Parallel.For(
-                    fromInclusive = start, 
-                    toExclusive = start + length - 1L, 
-                    localInit = (fun () -> Int64.MaxValue), 
-                    body = (fun (value: int64) (state: ParallelLoopState) (local: int64) ->
-                        let result = calculateLocationForSeed value
-                        Int64.Min(local, result)),
-                    localFinally = (fun local -> lock minValueLock (fun () -> minValue <- Int64.Min(minValue, local)))) |> ignore)
+seeds 
+    |> List.iter (
+        fun (start, length) -> 
+            Parallel.For(
+                fromInclusive = start, 
+                toExclusive = start + length - 1L, 
+                localInit = (fun () -> Int64.MaxValue), 
+                body = (fun (value: int64) (state: ParallelLoopState) (local: int64) ->
+                    let result = calculateLocationForSeed value
+                    Int64.Min(local, result)),
+                localFinally = (fun local -> lock minValueLock (fun () -> minValue <- Int64.Min(minValue, local)))) |> ignore)
 
 printfn "%d" minValue
