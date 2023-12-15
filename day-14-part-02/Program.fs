@@ -87,7 +87,7 @@ let sw = Stopwatch()
 
 sw.Start()
 
-let finalPlatform = platform |> repeatCyclePlatform 1000000000
+let finalPlatform = platform |> repeatCyclePlatform 1000 //1000000000 // I hear that cycle 1000 has the same platform configuration as cycle 1000000000
 printfn "%A" finalPlatform
 
 sw.Stop()
