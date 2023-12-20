@@ -104,30 +104,12 @@ let points =
 
     tailPoints |> Seq.toArray
 
-    // let lastPoint =
-    //     let point = tailPoints.[tailPoints.Count - 1]
-    //     tailPoints.RemoveAt(tailPoints.Count - 1)
-    //     point
-
-    // (lastPoint :: startingPoint :: (tailPoints |> Seq.toList)) |> Array.ofList
-
-// let points2 = [|
-//     { X = 0; Y = 0};
-//     { X = 0; Y = 10};
-//     { X = 10; Y = 10};
-//     { X = 10; Y = 0};
-// |]
-
-// printfn "%A" points
-
+// Determining the area using the shoelace formula:
+// https://en.wikipedia.org/wiki/Shoelace_formula
 let area =
     let size = Array.length points
-    //let sum = [1..(Array.length points)-1] |> List.sumBy (fun i -> points[i].X * (points[(i+1) % size].Y - points[i-1].Y))
     let sum = [0..(Array.length points)-1] |> List.sumBy (fun i -> (points[i].X * points.[(i+1) % size].Y) - (points.[(i+1) % size].X * points.[i].Y))
     let perimeter = digPlan |> List.sumBy (fun instruction -> instruction.Length)
-
-    printfn "%d" sum
-    printfn "%d" perimeter
 
     abs(sum / 2L) + (perimeter / 2L) + 1L
 
