@@ -9,7 +9,10 @@ namespace day_20_part_01;
 
 public class ModuleConfiguration
 {
+    public record Pulse(string ModuleName, bool IsHighPulse, string FromModuleName);
+
     private readonly Dictionary<string, IModuleNode> modules;
+    private readonly Queue<Pulse> pulseQueue;
     private readonly BroadcastModule broadcastModule;
 
     public ModuleConfiguration(IEnumerable<ModuleDefinition> moduleDefinitions)
@@ -19,26 +22,68 @@ public class ModuleConfiguration
                 x => x.Name,
                 x =>
                 {
+                    var inputNames = moduleDefinitions
+                        .Where(y => y.OutputNames.Contains(x.Name))
+                        .Select(y => y.Name);
+
                     return (IModuleNode)(x.ModuleType switch
                     {
                         ModuleType.Broadcast => new BroadcastModule(this, x.Name, x.OutputNames),
                         ModuleType.FlipFlop => new FlipFlopModule(this, x.Name, x.OutputNames),
-                        ModuleType.Conjunction => new ConjunctionModule(this, x.Name, x.OutputNames),
+                        ModuleType.Conjunction => new ConjunctionModule(this, x.Name, x.OutputNames, inputNames),
                         _ => throw new ApplicationException($"invalid module type: {x.ModuleType}")
                     });
                 });
 
+        pulseQueue = new Queue<Pulse>();
+
         broadcastModule = modules.Values.OfType<BroadcastModule>().FirstOrDefault() ?? throw new ApplicationException("no broadcast module defined");
     }
 
-    public void SendPulse(string moduleName, bool isLowPulse)
+    public void SendPulse(string moduleName, bool isHighPulse, string fromModuleName)
     {
-        // TODO: Queue the sending of the pulse...
+        if (moduleName == "output")
+            return;
+
+        pulseQueue.Enqueue(new Pulse(moduleName, isHighPulse, fromModuleName));
     }
 
     public void PushButton()
     {
-        // TODO: Implement (send low pulse to the broadcast module)
+        pulseQueue.Enqueue(new Pulse(broadcastModule.Name, false, "button"));
+    }
+
+    public Cycle CalculateCycle(int? maxIterations = null)
+    {
+        var lowPulseCount = 0;
+        var highPulseCount = 0;
+
+        Sequence RunSequence()
+        {
+            PushButton();
+
+            while (pulseQueue.Count > 0)
+            {
+                var pulse = pulseQueue.Dequeue();
+
+                if (pulse.IsHighPulse)
+                    highPulseCount++;
+                else
+                    lowPulseCount++;
+
+                modules[pulse.ModuleName].Pulse(pulse.IsHighPulse, pulse.FromModuleName);
+            }
+
+            var flipFlopMap = String.Concat(modules.Values.OfType<FlipFlopModule>().Select(x => x.IsOn ? '1' : '0'));                
+
+            return new Sequence(lowPulseCount, highPulseCount, flipFlopMap);
+        }
+
+        var cycle = new Cycle();
+
+        cycle.AddSequence(RunSequence());
+
+        return cycle;
     }
 
     public override string ToString()
@@ -49,7 +94,7 @@ public class ModuleConfiguration
 
         modules.Values.ToList().ForEach(x =>
         {
-            builder.AppendLine($"    {x.GetType().Name}(Name = {x.Name}, Outputs = {String.Join(", ", x.OutputNames)}");
+            builder.AppendLine($"    {x.GetType().Name}(Name = {x.Name}, Outputs = {String.Join(", ", x.OutputNames)})");
         });
 
         builder.AppendLine("]");

@@ -11,7 +11,7 @@ public interface IModuleNode
     string Name { get; }
     List<string> OutputNames { get; }
 
-    void Pulse(bool isLowPulse);
+    void Pulse(bool isHighPulse, string fromModuleName);
 }
 
 public abstract class BaseModule
@@ -34,9 +34,9 @@ public class BroadcastModule : BaseModule, IModuleNode
     {
     }
 
-    public void Pulse(bool isLowPulse)
+    public void Pulse(bool isHighPulse, string fromModuleName)
     {
-        OutputNames.ForEach(name => Config.SendPulse(name, isLowPulse));
+        OutputNames.ForEach(name => Config.SendPulse(name, isHighPulse, Name));
     }
 }
 
@@ -49,9 +49,9 @@ public class FlipFlopModule : BaseModule, IModuleNode
 
     }
 
-    public void Pulse(bool isLowPulse)
+    public void Pulse(bool isHighPulse, string fromModuleName)
     {
-        if (!isLowPulse)
+        if (isHighPulse)
             return;
 
         var wasOn = IsOn;
@@ -59,21 +59,31 @@ public class FlipFlopModule : BaseModule, IModuleNode
         IsOn = !IsOn;
 
         if (wasOn)
-            OutputNames.ForEach(name => Config.SendPulse(name, true));
+            OutputNames.ForEach(name => Config.SendPulse(name, false, Name));
         else
-            OutputNames.ForEach(name => Config.SendPulse(name, false));
+            OutputNames.ForEach(name => Config.SendPulse(name, true, Name));
     }
 }
 
 public class ConjunctionModule : BaseModule, IModuleNode
 {
-    public ConjunctionModule(ModuleConfiguration config, string name, List<string> outputNames) : base (config, name, outputNames)
-    {
+    private readonly List<string> inputNames;
+    private readonly bool[] pulseMemory;    // false = low, true = high
 
+    public ConjunctionModule(ModuleConfiguration config, string name, List<string> outputNames, IEnumerable<string> inputNames) : base (config, name, outputNames)
+    {
+        this.inputNames = inputNames.ToList();
+        pulseMemory = inputNames.Select(_ => false).ToArray();
     }
 
-    public void Pulse(bool isLowPulse)
+    public void Pulse(bool isHighPulse, string fromModuleName)
     {
-        // TODO: Implement...
+        var index = inputNames.IndexOf(fromModuleName);
+        pulseMemory[index] = isHighPulse;
+
+        if (pulseMemory.All(x => x))
+            OutputNames.ForEach(name => Config.SendPulse(name, false, Name));
+        else
+            OutputNames.ForEach(name => Config.SendPulse(name, true, Name));
     }
 }

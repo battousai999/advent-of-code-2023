@@ -22,3 +22,8 @@ var builder = new ModuleConfigurationBuilder();
 var moduleConfig = builder.Build(rawModuleConfiguration);
 
 Console.WriteLine(moduleConfig.ToString());
+
+var cycle = moduleConfig.CalculateCycle();
+
+Console.WriteLine();
+Console.WriteLine(cycle.ToString());
