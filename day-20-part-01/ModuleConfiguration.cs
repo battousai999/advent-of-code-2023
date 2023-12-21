@@ -15,6 +15,8 @@ public class ModuleConfiguration
     private readonly Queue<Pulse> pulseQueue;
     private readonly BroadcastModule broadcastModule;
 
+    private bool IsInStartingState => modules.Values.OfType<FlipFlopModule>().All(x => !x.IsOn);
+
     public ModuleConfiguration(IEnumerable<ModuleDefinition> moduleDefinitions)
     {
         modules = moduleDefinitions
@@ -40,11 +42,13 @@ public class ModuleConfiguration
         broadcastModule = modules.Values.OfType<BroadcastModule>().FirstOrDefault() ?? throw new ApplicationException("no broadcast module defined");
     }
 
+    public void ResetModules()
+    {
+        modules.Values.OfType<FlipFlopModule>().ToList().ForEach(x => x.Reset());
+    }
+
     public void SendPulse(string moduleName, bool isHighPulse, string fromModuleName)
     {
-        if (moduleName == "output")
-            return;
-
         pulseQueue.Enqueue(new Pulse(moduleName, isHighPulse, fromModuleName));
     }
 
@@ -57,31 +61,46 @@ public class ModuleConfiguration
     {
         var lowPulseCount = 0;
         var highPulseCount = 0;
+        var buttonCounter = 0;
 
         Sequence RunSequence()
         {
             PushButton();
+            buttonCounter++;
+
+            var debugList = new List<Pulse>();
 
             while (pulseQueue.Count > 0)
             {
                 var pulse = pulseQueue.Dequeue();
+
+                debugList.Add(pulse);
 
                 if (pulse.IsHighPulse)
                     highPulseCount++;
                 else
                     lowPulseCount++;
 
-                modules[pulse.ModuleName].Pulse(pulse.IsHighPulse, pulse.FromModuleName);
+                if (modules.TryGetValue(pulse.ModuleName, out var module))
+                    module.Pulse(pulse.IsHighPulse, pulse.FromModuleName);
             }
 
-            var flipFlopMap = String.Concat(modules.Values.OfType<FlipFlopModule>().Select(x => x.IsOn ? '1' : '0'));                
+            var flipFlopMap = String.Concat(modules.Values.OfType<FlipFlopModule>().Select(x => x.IsOn ? '1' : '0'));
 
+            Console.WriteLine();
+            Console.WriteLine(String.Join(Environment.NewLine, debugList.Select(x => $"{x.FromModuleName} -{(x.IsHighPulse ? "high" : "low")}-> {x.ModuleName}")));
+            
             return new Sequence(lowPulseCount, highPulseCount, flipFlopMap);
         }
 
         var cycle = new Cycle();
 
-        cycle.AddSequence(RunSequence());
+        ResetModules();
+
+        do
+        {
+            cycle.AddSequence(RunSequence());
+        } while (!IsInStartingState && (buttonCounter < maxIterations));
 
         return cycle;
     }

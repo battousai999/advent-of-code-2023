@@ -49,6 +49,11 @@ public class FlipFlopModule : BaseModule, IModuleNode
 
     }
 
+    public void Reset()
+    {
+        IsOn = false;
+    }
+
     public void Pulse(bool isHighPulse, string fromModuleName)
     {
         if (isHighPulse)

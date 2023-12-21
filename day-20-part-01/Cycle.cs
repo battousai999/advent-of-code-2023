@@ -8,10 +8,10 @@ namespace day_20_part_01;
 
 public class Cycle
 {
-    public List<Sequence> Sequences { get; private set; } = [];
+    public List<Sequence> Sequences { get; private set; } = new List<Sequence>();
 
-    public int TotalLowPulseCount => Sequences.Sum(x => x.LowPulseCount);
-    public int TotalHighPulseCount => Sequences.Sum(x => x.HighPulseCount);
+    public int TotalLowPulseCount => Sequences.LastOrDefault()?.LowPulseCount ?? 0;
+    public int TotalHighPulseCount => Sequences.LastOrDefault()?.HighPulseCount ?? 0;
 
     public void AddSequence(Sequence sequence)
     {
